@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Accessible Object Recognition</title>
+    <link rel="stylesheet" href="styles.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header>
+        <nav>
+            <h1>Assistive Object Recognition</h1>
+            <ul>
+                <li><a href="#home">Home</a></li>
+                <li><a href="#about">About</a></li>
+                <li><a href="#contact">Contact</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <div class="container" id="home">
+        <section class="intro">
+            <h2>Real-Time Object Recognition for Accessibility</h2>
+            <p>This application helps individuals with disabilities by recognizing objects in real-time using AI technology. The detected objects are displayed visually and described for accessibility.</p>
+        </section>
+
+        <div id="camera-icon" class="icon-container">
+            <img src="camera_icon.png" alt="Camera" class="camera-icon">
+        </div>
+
+        <div class="video-container">
+            <video id="webcam" autoplay playsinline width="640" height="480"></video>
+            <canvas id="output" width="640" height="480"></canvas>
+        </div>
+
+        <div id="detected-objects" class="detected-objects">
+            <h3>Detected Objects:</h3>
+            <ul id="object-list"></ul>
+        </div>
+
+        <section class="chatbot-container">
+            <h3><img src="download.png" alt="Robot Icon" class="robot-icon"> MAYA AI</h3>
+            <div id="chat-container">
+                <div id="chat-output"></div>
+                <input type="text" id="chat-input" placeholder="Ask about the detected objects..." />
+                <button id="chat-send">Send</button>
+            </div>
+        </section>
+    </div>
+
+    <footer>
+        <p>© 2024 Accessible AI Solutions | <a href="#">Privacy Policy</a></p>
+    </footer>
+
+    <script>
+        let model;
+
+        // Load the COCO-SSD model
+        async function loadModel() {
+            model = await cocoSsd.load();
+            console.log("Model loaded successfully!");
+            startWebcam();
+        }
+
+        // Start the webcam
+        function startWebcam() {
+            const webcam = document.getElementById('webcam');
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then((stream) => {
+                    webcam.srcObject = stream;
+                    webcam.addEventListener('loadeddata', () => {
+                        detectObjects();
+                    });
+                })
+                .catch((err) => {
+                    console.error("Error accessing webcam:", err);
+                });
+        }
+
+        // Detect objects in real-time
+        async function detectObjects() {
+            const webcam = document.getElementById('webcam');
+            const canvas = document.getElementById('output');
+            const ctx = canvas.getContext('2d');
+            const objectList = document.getElementById('object-list');
+
+            if (model) {
+                ctx.drawImage(webcam, 0, 0, canvas.width, canvas.height);
+                const predictions = await model.detect(canvas);
+
+                // Clear the previous list
+                objectList.innerHTML = '';
+
+                // Display detected objects
+                predictions.forEach((prediction) => {
+                    const listItem = document.createElement('li');
+                    listItem.textContent = `${prediction.class} (${Math.round(prediction.score * 100)}%)`;
+                    objectList.appendChild(listItem);
+                });
+
+                // Call detectObjects again for real-time updates
+                requestAnimationFrame(detectObjects);
+            }
+        }
+
+        // Send query to the backend and display the response
+        async function handleChatbotResponse(query) {
+            const chatOutput = document.getElementById('chat-output');
+            const detectedObjects = Array.from(document.querySelectorAll('#object-list li')).map(li => li.textContent.split(' ')[0]);
+
+            try {
+                const response = await fetch('http://127.0.0.1:5000/chatbot', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query, detected_objects: detectedObjects })
+                });
+
+                const data = await response.json();
+                const responseElement = document.createElement('p');
+                responseElement.textContent = data.response;
+                chatOutput.appendChild(responseElement);
+            } catch (error) {
+                console.error("Error communicating with the backend:", error);
+            }
+        }
+
+        // Handle chat input
+        document.getElementById('chat-send').addEventListener('click', () => {
+            const chatInput = document.getElementById('chat-input');
+            const query = chatInput.value.trim();
+            if (query) {
+                handleChatbotResponse(query);
+                chatInput.value = ''; // Clear the input field
+            }
+        });
+
+        // Load the model when the page loads
+        window.onload = loadModel;
+    </script>
+</body>
+</html>
