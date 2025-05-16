@@ -14,11 +14,6 @@
 - 🎨 **Responsive UI** with styled components for seamless UX
 - 📦 **Pre-trained SSD MobileNet v2 Model** for accurate object detection
 
-## 🚀 Live Demo
-
-[Insert link here if deployed]
-
----
 
 ## 🛠️ Tech Stack
 
